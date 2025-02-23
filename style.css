@@ -1,0 +1,31 @@
+div.twitch-chat-container.hidden {
+    display: none;
+}
+
+div.twitch-chat-container a {
+    color: inherit;
+}
+
+div.twitch-chat-container {
+    background: black;
+    color: white;
+    font-size: 2em;
+    height: 60vh;
+    overflow-y: scroll;
+}
+
+ul.twitch-chat-list {
+    list-style: none;
+}
+
+ul.twitch-chat-list li {
+    padding: 5px 0 5px 5px;
+}
+
+ul.twitch-chat-list li:nth-of-type(2n) {
+    background: #222222;
+}
+
+ul.twitch-chat-list li:hover {
+    background: #444444;
+}

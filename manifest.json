@@ -1,0 +1,22 @@
+{
+	"name": "Twitch VOD chat on YouTube",
+	"version": "0.1",
+	"manifest_version": 3,
+	"description": "Creates a chat replay on Twitch VODs exported to youtube if available",
+	"background": {
+	},
+	"permissions": [
+		"scripting"
+	],
+	"content_scripts": [
+		{
+		  "matches": ["https://*.youtube.com/*"],
+		  "css": ["style.css"],
+		  "js": ["script.js"]
+		}
+	  ],
+	"host_permissions": [
+		"https://*.youtube.com/*"
+	],
+	"action": {}
+}

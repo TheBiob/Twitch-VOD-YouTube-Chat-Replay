@@ -27,7 +27,9 @@ I'll add instructions on how to set this up once I have the scripts for it writt
 ### TODOs
  - Add scripts to automate downloading, formatting and pushing chat history files
  - Add Twitch as well as third party emotes to chat messages
- - Add a configuration page to the extension
- - Build some sort of cache for what video ids contain chat replays. Currently it simply tries to fetch any video that was clicked on from GitHub.
- - Fix the design. I'm not really a web dev so I have no idea what I'm doing.
-
+ - Add a configuration page to the extension, support for other repositories
+ - Change chat design to closer represent what it'd look like on twitch
+ - Support readable colors settings
+ - VOD chapters
+ - Popout chat
+ - Transparent on-video chat, draggable akin to subtitles

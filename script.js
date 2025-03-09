@@ -1,4 +1,10 @@
 const AppState = {
+	REPOSITORY_URL: 'https://raw.githubusercontent.com/TheBiob/twitch-chat-storage/refs/heads/main',
+	VERSION: 0.1,
+	MIN_SUPPORTED_VERSION: 0.1,
+
+	is_initialized: false,
+	initialized_failed: false,
 	video_element: undefined,
 	chat_container: undefined,
 	active_chat_history: {
@@ -10,25 +16,26 @@ const AppState = {
 		next_message_index: 0,
 		embedded_data: null,
 	},
+	known_video_ids: null,
 }
 
 window.addEventListener('load', TryInitialize);
 window.navigation.addEventListener('navigate', async (_ev) => {
-	console.log('navigate');
 	if (_ev.destination.url.indexOf('/watch') >= 0 && _ev.destination.url.indexOf('?') >= 0) {
 		await ApplyChatForVideo(_ev.destination.url.substring(_ev.destination.url.indexOf('?')))
 	}
-	console.log('navigate end');
 });
 
 async function TryInitialize() {
-	console.log('TryInitialize');
-	SetupAppState();
-	console.log('TryInitialize end');
+	await SetupAppState();
 	if (AppState.is_initialized) {
+		console.log('Initialized');
 		await ApplyChatForVideo(window.location.search);
 	} else {
-		window.setTimeout(TryInitialize, 1000);
+		if (!AppState.initialized_failed) {
+			console.log('retrying initialization in 1 second');
+			window.setTimeout(TryInitialize, 1000);
+		}
 	}
 }
 
@@ -52,15 +59,37 @@ function onMessageClicked(ev) {
 	}
 }
 
-function SetupAppState() {
-	if (!AppState.is_initialized) {
+async function SetupAppState() {
+	if (AppState.initialized_failed)
+		return;
+
+	if (AppState.known_video_ids === null) {
+		let content = await fetch(AppState.REPOSITORY_URL+'/index.json');
+		if (content.ok) {
+			let json = await content.json();
+			if (json != null && json.version && json.files && json.version >= AppState.MIN_SUPPORTED_VERSION) {
+				if (json.version > AppState.VERSION) {
+					console.warn(`Repository version is newer than the extension version, it may not be fully supported`);
+				}
+
+				AppState.known_video_ids = Object.keys(json.files);
+			} else {
+				console.error('Invalid json or unsupported version fetched from repository');
+				AppState.initialized_failed = true;
+			}
+		} else {
+			console.error(`Known video ids could not be fetched`);
+			AppState.initialized_failed = true;
+		}
+	}
+
+	if (AppState.known_video_ids !== null && !AppState.is_initialized) {
 		AppState.video_element = document.querySelector('ytd-player video.html5-main-video');
 		if (AppState.video_element != null) {
 			AppState.video_element.addEventListener('seeking', onVideoSeeking);
 			AppState.video_element.addEventListener('timeupdate', onVideoTimeUpdate);
 			SetupChatContainer();
 			AppState.is_initialized = true;
-			console.info('initialized');
 		}
 	}
 }
@@ -182,17 +211,17 @@ async function ApplyChatForVideo(search_params) {
 		const query = new URLSearchParams(search_params);
 		const video_id = query.get('v');
 
-		if (video_id != undefined) {
-			console.info(`Video Id: ${video_id}`);
+		if (video_id != undefined && AppState.known_video_ids?.includes(video_id)) {
+			console.trace(`Loading Video Id: ${video_id}`);
 
 			if (AppState.active_chat_history.loaded && AppState.active_chat_history.for_video_id == video_id) {
-				console.info("Video id already loaded");
+				console.trace("Video id already loaded");
 			} else {
 				AppState.active_chat_history.loaded = false;
 				AppState.active_chat_history.for_video_id = video_id;
 				
-				console.info('Fetching chat data');
-				let content = await fetch('https://raw.githubusercontent.com/TheBiob/twitch-chat-storage/refs/heads/main/' + video_id + '.json')
+				console.trace('Fetching chat data');
+				let content = await fetch(AppState.REPOSITORY_URL+'/processed/' + video_id + '.json');
 				if (content.ok) {
 					let json = await content.json();
 					if (json != null) {
@@ -208,7 +237,6 @@ async function ApplyChatForVideo(search_params) {
 		} else {
 			AppState.active_chat_history.loaded = false;
 			AppState.active_chat_history.for_video_id = undefined;
-			console.warn('no video id');
 		}
 
 		if (AppState.active_chat_history.loaded) {

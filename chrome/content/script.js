@@ -3,6 +3,7 @@ const AppState = {
 	initialized_failed: false,
 	video_element: undefined,
 	chat_container: undefined,
+	chat_list: undefined,
 	active_chat_history: {
 		loaded: false,
 		for_video_id: undefined,
@@ -60,10 +61,9 @@ async function SetupAppState() {
 
 	if (!AppState.is_initialized) {
 		AppState.video_element = document.querySelector('ytd-player video.html5-main-video');
-		if (AppState.video_element != null) {
+		if (AppState.video_element != undefined && SetupChatContainer()) {
 			AppState.video_element.addEventListener('seeking', onVideoSeeking);
 			AppState.video_element.addEventListener('timeupdate', onVideoTimeUpdate);
-			SetupChatContainer();
 			AppState.is_initialized = true;
 		}
 	}
@@ -71,20 +71,22 @@ async function SetupAppState() {
 
 function SetupChatContainer() {
 	if (AppState.chat_container === undefined) {
-		let chat_container = document.querySelector('#chat-container');
+		const chat_container = document.querySelector('#chat-container');
 		if (chat_container == undefined)
-			return;
+			return false;
 
-		let container = document.createElement('div');
-		let list = document.createElement('ul');
+		const container = document.createElement('div');
+		const list = document.createElement('ul');
 
-		container.classList.add('twitch-chat-container');
+		container.classList.add('twitch-chat-container', 'hidden');
 		list.classList.add('twitch-chat-list');
 		container.appendChild(list);
 		chat_container.appendChild(container);
-		chat_container.classList.add('hidden');
-		AppState.chat_container = chat_container;
+		AppState.chat_container = container;
+		AppState.chat_list = list;
 	}
+
+	return true;
 }
 function pad2(num) {
     var s = "00" + num;
@@ -150,7 +152,7 @@ function RenderChatHistory(rerender) {
 			return; // Nothing to do
 		}
 
-		const ul = AppState.chat_container.querySelector('ul.twitch-chat-list');
+		const ul = AppState.chat_list;
 		if (rerender) {
 			while (ul.lastChild) {
 				ul.removeChild(ul.lastChild);

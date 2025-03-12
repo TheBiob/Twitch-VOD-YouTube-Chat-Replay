@@ -1,8 +1,4 @@
 const AppState = {
-	REPOSITORY_URL: 'https://raw.githubusercontent.com/TheBiob/twitch-chat-storage/refs/heads/main',
-	VERSION: 0.1,
-	MIN_SUPPORTED_VERSION: 0.1,
-
 	is_initialized: false,
 	initialized_failed: false,
 	video_element: undefined,
@@ -11,12 +7,11 @@ const AppState = {
 		loaded: false,
 		for_video_id: undefined,
 		messages: [],
-		latest_message_time: -1,
+		previous_message_time: -1,
 		next_message: null,
 		next_message_index: 0,
 		embedded_data: null,
 	},
-	known_video_ids: null,
 }
 
 window.addEventListener('load', TryInitialize);
@@ -33,23 +28,23 @@ async function TryInitialize() {
 		await ApplyChatForVideo(window.location.search);
 	} else {
 		if (!AppState.initialized_failed) {
-			console.log('retrying initialization in 1 second');
+			console.trace('retrying initialization in 1 second');
 			window.setTimeout(TryInitialize, 1000);
 		}
 	}
 }
 
 function onVideoTimeUpdate() {
-	if (AppState.active_chat_history.next_message !== null) {
+	if (AppState.active_chat_history?.next_message != null) {
 		let current_time = AppState.video_element.currentTime;
-		if (current_time > AppState.active_chat_history.next_message.content_offset_seconds) {
+		if (current_time >= AppState.active_chat_history.next_message.content_offset_seconds) {
 			RenderChatHistory(false);
 		}
 	}
 }
 
 function onVideoSeeking() {
-	RenderChatHistory(AppState.active_chat_history.latest_message_time < 0 || AppState.video_element.currentTime < AppState.active_chat_history.latest_message_time);
+	RenderChatHistory(false);
 }
 
 function onMessageClicked(ev) {
@@ -63,27 +58,7 @@ async function SetupAppState() {
 	if (AppState.initialized_failed)
 		return;
 
-	if (AppState.known_video_ids === null) {
-		let content = await fetch(AppState.REPOSITORY_URL+'/index.json');
-		if (content.ok) {
-			let json = await content.json();
-			if (json != null && json.version && json.files && json.version >= AppState.MIN_SUPPORTED_VERSION) {
-				if (json.version > AppState.VERSION) {
-					console.warn(`Repository version is newer than the extension version, it may not be fully supported`);
-				}
-
-				AppState.known_video_ids = Object.keys(json.files);
-			} else {
-				console.error('Invalid json or unsupported version fetched from repository');
-				AppState.initialized_failed = true;
-			}
-		} else {
-			console.error(`Known video ids could not be fetched`);
-			AppState.initialized_failed = true;
-		}
-	}
-
-	if (AppState.known_video_ids !== null && !AppState.is_initialized) {
+	if (!AppState.is_initialized) {
 		AppState.video_element = document.querySelector('ytd-player video.html5-main-video');
 		if (AppState.video_element != null) {
 			AppState.video_element.addEventListener('seeking', onVideoSeeking);
@@ -168,24 +143,32 @@ function buildChatMessage(message) {
 }
 
 function RenderChatHistory(rerender) {
-	if (AppState.is_initialized && AppState.active_chat_history.loaded) {
-		console.info('Rerender: ', rerender);
-		let current_time = AppState.video_element.currentTime;
+	if (AppState.is_initialized && AppState.active_chat_history?.loaded) {
+		const current_time = AppState.video_element.currentTime;
 
-		let ul = AppState.chat_container.querySelector('ul.twitch-chat-list');
+		if (!rerender && current_time >= AppState.active_chat_history.previous_message_time && (AppState.active_chat_history.next_message == null || current_time < AppState.active_chat_history.next_message.content_offset_seconds)) {
+			return; // Nothing to do
+		}
+
+		const ul = AppState.chat_container.querySelector('ul.twitch-chat-list');
 		if (rerender) {
 			while (ul.lastChild) {
 				ul.removeChild(ul.lastChild);
 			}
+		} else {
+			// Only remove messages that are after the current video time
+			while ((ul.lastChild?.message?.content_offset_seconds ?? -1) > current_time) {
+				ul.removeChild(ul.lastChild);
+				AppState.active_chat_history.next_message_index--;
+			}
 		}
 
-		let lastElement = undefined;
-		let startIndex = rerender ? 0 : AppState.active_chat_history.next_message_index;
-
+		const start_index = rerender ? 0 : AppState.active_chat_history.next_message_index;
+		
 		AppState.active_chat_history.next_message = null;
-		AppState.active_chat_history.next_message_index = 0;
-		for (let index = startIndex; index < AppState.active_chat_history.messages.length; index++) {
-			let message = AppState.active_chat_history.messages[index];
+		AppState.active_chat_history.next_message_index = -1;
+		for (let index = start_index; index >= 0 && index < AppState.active_chat_history.messages.length; index++) {
+			const message = AppState.active_chat_history.messages[index];
 
 			if (message.content_offset_seconds > current_time) {
 				AppState.active_chat_history.next_message = message;
@@ -193,15 +176,15 @@ function RenderChatHistory(rerender) {
 				break;
 			}
 
-			lastElement = buildChatMessage(message);
-			ul.appendChild(lastElement);
+			const chat_element = buildChatMessage(message);
+			ul.appendChild(chat_element);
 		}
 
-		if (lastElement !== undefined) {
-			AppState.active_chat_history.latest_message_time = lastElement.message.content_offset_seconds;
-			lastElement.scrollIntoView(false);
+		if (ul.lastChild) {
+			AppState.active_chat_history.previous_message_time = ul.lastChild.message.content_offset_seconds;
+			ul.lastChild.scrollIntoView(false);
 		} else {
-			AppState.active_chat_history.latest_message_time = -1;
+			AppState.active_chat_history.previous_message_time = -1;
 		}
 	}
 }
@@ -211,27 +194,13 @@ async function ApplyChatForVideo(search_params) {
 		const query = new URLSearchParams(search_params);
 		const video_id = query.get('v');
 
-		if (video_id != undefined && AppState.known_video_ids?.includes(video_id)) {
-			console.trace(`Loading Video Id: ${video_id}`);
-
+		if (video_id != undefined) {
 			if (AppState.active_chat_history.loaded && AppState.active_chat_history.for_video_id == video_id) {
 				console.trace("Video id already loaded");
 			} else {
-				AppState.active_chat_history.loaded = false;
-				AppState.active_chat_history.for_video_id = video_id;
-				
-				console.trace('Fetching chat data');
-				let content = await fetch(AppState.REPOSITORY_URL+'/processed/' + video_id + '.json');
-				if (content.ok) {
-					let json = await content.json();
-					if (json != null) {
-						AppState.active_chat_history.messages = json.messages;
-						AppState.active_chat_history.embedded_data = json.embedded_data;
-						AppState.active_chat_history.loaded = true;
-						RenderChatHistory(true);
-					}
-				} else {
-					console.warn(`Data for ${video_id} could not be fetched`);
+				AppState.active_chat_history = await chrome.runtime.sendMessage({type: 'get-chat-data', video_id});
+				if (AppState.active_chat_history.loaded) {
+					RenderChatHistory(true);
 				}
 			}
 		} else {

@@ -4,49 +4,85 @@ const AppState = {
 	VERSION: 0.1,
 	MIN_SUPPORTED_VERSION: 0.1,
 
-    repositories: ['https://raw.githubusercontent.com/TheBiob/twitch-chat-storage/refs/heads/main'],
-    known_video_ids: null,
+    CONFIG_REPOSITORIES: 'repositories',
+
+    loaded: false,
+
+    repositories: [{
+        url: 'https://raw.githubusercontent.com/TheBiob/twitch-chat-storage/refs/heads/main',
+        status: 'unloaded',
+        videos: null,
+    }],
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'get-chat-data') {
         fetchVideoData(message.video_id).then(sendResponse);
         return true;
+    } else if (message.type == 'get-status') {
+        ensureLoaded().then(() => {
+            sendResponse({
+                repository_count: AppState.repositories.length,
+                video_count: AppState.repositories.reduce((accum, value) => accum+(Object.keys(value.videos ?? {}).length), 0),
+            });
+        });
+        return true;
+    } else if (message.type == 'get-repositories') {
+        ensureLoaded().then(() => {
+            sendResponse(AppState.repositories);
+        });
+        return true;
+    } else if (message.type == 'add-repository') {
+        addRepository(message.url).then(sendResponse);
+        return true;
+    } else if (message.type == 'remove-repository') {
+        removeRepository(message.url).then(sendResponse);
+        return true;
+    } else if (message.type == 'load-repositories') {
+        reloadRepositories().then(sendResponse);
+        return true;
     }
 });
 
-async function reloadRepositories() {
-    console.trace('Reloading repositories');
-    AppState.known_video_ids = {};
-    for (let i = 0; i < AppState.repositories.length; i++) {
-        const repo = AppState.repositories[i];
-        try {
-            const content = await fetch(repo+'/index.json');
+async function loadRepositoryVideos(repo) {
+    try {
+        const content = await fetch(repo.url+'/index.json');
 
-            if (content.ok) {
-                const json = await content.json();
-                if (json != null && json.version && json.files && json.version >= AppState.MIN_SUPPORTED_VERSION) {
-                    if (json.version > AppState.VERSION) {
-                        console.warn(`Version is newer than the extension version, it may not be fully supported: '${repo}'`);
-                    }
-                    
-                    for (let video in json.files) {
-                        if (AppState.known_video_ids[video] !== undefined) {
-                            console.warn(`Video ${video_id} already contained in repository '${AppState.repositories[AppState.known_video_ids[video]]}' (Also contained in repo: '${repo}')`)
-                        } else {
-                            AppState.known_video_ids[video] = i;
-                        }
-                    }
-                } else {
-                    console.warn(`Invalid json or unsupported version fetched from repository '${repo}'`);
+        if (content.ok) {
+            const json = await content.json();
+            if (json != null && json.version && json.files && typeof(json.files) === 'object' && json.version >= AppState.MIN_SUPPORTED_VERSION) {
+                if (json.version > AppState.VERSION) {
+                    console.warn(`Version is newer than the extension version, it may not be fully supported: '${repo.url}'`);
                 }
+                
+                repo.videos = json.files;
+                repo.status = 'loaded';
+                await chrome.storage.session.set({ [repo.url]: json.files });
             } else {
-                console.warn(`Video ids for repository '${repo}' could not be fetched`);
+                repo.status = 'invalid';
+                console.warn(`Invalid json or unsupported version fetched from repository '${repo.url}'`);
             }
-        } catch (e) {
-            console.error(e, repo);
+        } else {
+            repo.status = 'error';
+            console.warn(`Video ids for repository '${repo.url}' could not be fetched`);
+        }
+    } catch (e) {
+        repo.status = 'error';
+        console.error(e, repo);
+    }
+}
+
+async function reloadRepositories() {
+    await ensureLoaded();
+
+    console.trace('Reloading repositories');
+    for (let repo of AppState.repositories) {
+        if (repo.status === 'unloaded') {
+            await loadRepositoryVideos(repo);
         }
     }
+
+    return true;
 }
 
 async function fetchVideoData(video_id) {
@@ -79,7 +115,6 @@ async function fetchVideoData(video_id) {
         console.error(e);
     }
 
-    console.trace('No data found');
     // No repository found that contains this video or the repository contained invalid data, return an empty chat replay object
     return {
         loaded: false,
@@ -94,14 +129,96 @@ async function fetchVideoData(video_id) {
 }
 
 async function getRepository(video_id) {
-    if (AppState.known_video_ids === null) {
-        await reloadRepositories();
-    }
+    await ensureLoaded();
 
-    const video = AppState.known_video_ids[video_id];
-    if (video !== undefined) {
-        return AppState.repositories[video];
+    for (let repo of AppState.repositories) {
+        if (repo.status === 'unloaded') {
+            await loadRepositoryVideos(repo);
+        }
+
+        if (repo.videos && repo.videos[video_id]) {
+            return repo.url;
+        }
     }
 
     return null;
+}
+
+async function addRepository(url) {
+    await ensureLoaded();
+
+    const repo = {
+        url,
+        status: 'unloaded', 
+        videos: null
+    };
+
+    for (let repo2 of AppState.repositories) {
+        if (repo2.url == url) {
+            return { success: false, error_message: 'Repository already added' };
+        }
+    }
+
+    await loadRepositoryVideos(repo);
+
+    if (repo.status == 'loaded') {
+        AppState.repositories.push(repo);
+        await saveRepositories();
+        return { success: true };
+    } else if (repo.status == 'error') {
+        return { success: false, error_message: 'Repository could not be loaded' };
+    } else if (repo.status == 'invalid') {
+        return { success: false, error_message: 'Repository returned invalid data. It\'s version might be out of date' };
+    }
+    
+    return { success: false, error_message: 'Unknown error' };
+}
+async function removeRepository(url) {
+    const index = AppState.repositories.findIndex(repo => repo.url == url);
+    if (index < 0) {
+        return { success: false, error_message: 'Repository not found' };
+    }
+
+    AppState.repositories.splice(index, 1);
+
+    return { success: true };
+}
+
+async function saveRepositories() {
+    if (AppState.loaded) {
+        await chrome.storage.local.set({[AppState.CONFIG_REPOSITORIES]: AppState.repositories.map(repo => repo.url )});
+
+        return true;
+    }
+
+    return false;
+}
+
+async function ensureLoaded() {
+    if (!AppState.loaded) {
+        const config = await chrome.storage.local.get();
+        const repositories = config[AppState.CONFIG_REPOSITORIES];
+        if (Array.isArray(repositories)) {
+            AppState.repositories = repositories.map(repo_url => {
+                return {
+                    url: repo_url,
+                    status: 'unloaded',
+                    videos: null
+                }
+            });
+        }
+
+        const session = await chrome.storage.session.get();
+        for (let repo of AppState.repositories) {
+            if (repo.status === 'unloaded') {
+                const videos = session[repo.url];
+                if (videos !== undefined) {
+                    repo.videos = videos;
+                    repo.status = 'loaded';
+                }
+            }
+        }
+
+        AppState.loaded = true;
+    }
 }

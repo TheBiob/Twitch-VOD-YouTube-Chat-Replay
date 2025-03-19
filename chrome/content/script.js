@@ -8,9 +8,7 @@ const AppState = {
 		loaded: false,
 		for_video_id: undefined,
 		messages: [],
-		previous_message_time: -1,
-		next_message: null,
-		next_message_index: 0,
+		current_message_index: -1,
 		embedded_data: null,
 	},
 }
@@ -36,14 +34,8 @@ async function TryInitialize() {
 }
 
 function onVideoTimeUpdate() {
-	if (AppState.active_chat_history?.next_message != null) {
-		let current_time = AppState.video_element.currentTime;
-		if (current_time >= AppState.active_chat_history.next_message.content_offset_seconds) {
-			RenderChatHistory(false);
-		}
-	}
+	RenderChatHistory(false);
 }
-
 function onVideoSeeking() {
 	RenderChatHistory(false);
 }
@@ -113,10 +105,10 @@ function buildChatMessage(message) {
 	commenter.appendChild(commenter_link);
 
 	for (let badge of message.message.user_badges) {
-		let badge_content = AppState.active_chat_history.embedded_data.twitch_badges[badge._id]?.versions[badge.version];
+		const badge_content = AppState.active_chat_history.embedded_data?.twitch_badges[badge._id]?.versions[badge.version];
 		if (badge_content != null) {
-			let badge_span = document.createElement('span');
-			let badge_img = document.createElement('img');
+			const badge_span = document.createElement('span');
+			const badge_img = document.createElement('img');
 			badge_img.src = "data:image/png;base64,"+badge_content.bytes;
 			badge_img.width = 16;
 			badge_img.height = 16;
@@ -145,36 +137,40 @@ function buildChatMessage(message) {
 }
 
 function RenderChatHistory(rerender) {
-	if (AppState.is_initialized && AppState.active_chat_history?.loaded) {
+	if (AppState.is_initialized && AppState.active_chat_history.loaded) {
 		const current_time = AppState.video_element.currentTime;
-
-		if (!rerender && current_time >= AppState.active_chat_history.previous_message_time && (AppState.active_chat_history.next_message == null || current_time < AppState.active_chat_history.next_message.content_offset_seconds)) {
-			return; // Nothing to do
+		
+		let message_index = AppState.active_chat_history.current_message_index;
+		if (// If we don't want to rerender
+			!rerender
+			// And current_time is after the currently displayed message (or there is no previous message)
+			&& (message_index < 0 || AppState.active_chat_history.messages[message_index].content_offset_seconds <= current_time)
+			// And current_time is before the next message to be displayed (or there is no next message)
+			&& (message_index >= AppState.active_chat_history.messages.length-1 || AppState.active_chat_history.messages[message_index+1].content_offset_seconds > current_time))
+		{
+			// Then there's nothing to do
+			return;
 		}
-
+		
 		const ul = AppState.chat_list;
 		if (rerender) {
 			while (ul.lastChild) {
 				ul.removeChild(ul.lastChild);
 			}
+			message_index = 0;
 		} else {
 			// Only remove messages that are after the current video time
 			while ((ul.lastChild?.message?.content_offset_seconds ?? -1) > current_time) {
 				ul.removeChild(ul.lastChild);
-				AppState.active_chat_history.next_message_index--;
+				message_index--;
 			}
+			message_index++;
 		}
 
-		const start_index = rerender ? 0 : AppState.active_chat_history.next_message_index;
-		
-		AppState.active_chat_history.next_message = null;
-		AppState.active_chat_history.next_message_index = -1;
-		for (let index = start_index; index >= 0 && index < AppState.active_chat_history.messages.length; index++) {
-			const message = AppState.active_chat_history.messages[index];
+		for (; message_index < AppState.active_chat_history.messages.length; message_index++) {
+			const message = AppState.active_chat_history.messages[message_index];
 
 			if (message.content_offset_seconds > current_time) {
-				AppState.active_chat_history.next_message = message;
-				AppState.active_chat_history.next_message_index = index;
 				break;
 			}
 
@@ -182,11 +178,10 @@ function RenderChatHistory(rerender) {
 			ul.appendChild(chat_element);
 		}
 
+		AppState.active_chat_history.current_message_index = message_index-1;
+
 		if (ul.lastChild) {
-			AppState.active_chat_history.previous_message_time = ul.lastChild.message.content_offset_seconds;
 			ul.lastChild.scrollIntoView(false);
-		} else {
-			AppState.active_chat_history.previous_message_time = -1;
 		}
 	}
 }
@@ -200,7 +195,12 @@ async function ApplyChatForVideo(search_params) {
 			if (AppState.active_chat_history.loaded && AppState.active_chat_history.for_video_id == video_id) {
 				console.trace("Video id already loaded");
 			} else {
-				AppState.active_chat_history = await chrome.runtime.sendMessage({type: 'get-chat-data', video_id});
+				const chat_data = await chrome.runtime.sendMessage({type: 'get-chat-data', video_id})
+				AppState.active_chat_history.current_message_index = -1;
+				AppState.active_chat_history.for_video_id = video_id;
+				AppState.active_chat_history.loaded = chat_data.messages != null;
+				AppState.active_chat_history.messages = chat_data.messages ?? [];
+				AppState.active_chat_history.embedded_data = chat_data.embedded_data;
 				if (AppState.active_chat_history.loaded) {
 					RenderChatHistory(true);
 				}

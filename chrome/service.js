@@ -97,13 +97,7 @@ async function fetchVideoData(video_id) {
 
                     // If the chat data was successfully fetched, return the data
                     return {
-                        loaded: true,
-                        exists: true,
-                        for_video_id: video_id,
                         messages: json.messages,
-                        previous_message_time: -1,
-                        next_message: null,
-                        next_message_index: 0,
                         embedded_data: json.embedded_data,
                     };
                 }
@@ -117,13 +111,7 @@ async function fetchVideoData(video_id) {
 
     // No repository found that contains this video or the repository contained invalid data, return an empty chat replay object
     return {
-        loaded: false,
-        exists: false,
-        for_video_id: video_id,
-        messages: [],
-        previous_message_time: -1,
-        next_message: null,
-        next_message_index: 0,
+        messages: null,
         embedded_data: null,
     };
 }

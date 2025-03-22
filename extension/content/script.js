@@ -70,7 +70,7 @@ async function SetupAppState() {
 		return;
 
 	if (!AppState.is_initialized) {
-		AppState.video_element = document.querySelector('ytd-player video.html5-main-video');
+		AppState.video_element = document.querySelector('ytd-player#ytd-player video.html5-main-video');
 		if (AppState.video_element != undefined && SetupChatContainer()) {
 			AppState.video_element.addEventListener('seeking', onVideoSeeking);
 			AppState.video_element.addEventListener('timeupdate', onVideoTimeUpdate);

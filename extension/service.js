@@ -1,4 +1,8 @@
-// service worker to handle fetching repositories and caching information
+// background script to handle fetching repositories and caching information
+
+if (typeof browser == "undefined") {
+    globalThis.browser = chrome; // Chrome does not support the browser namespace yet.
+}
 
 const AppState = {
 	VERSION: 0.1,
@@ -15,7 +19,7 @@ const AppState = {
     }],
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'get-chat-data') {
         fetchVideoData(message.video_id).then(sendResponse);
         return true;
@@ -57,7 +61,7 @@ async function loadRepositoryVideos(repo) {
                 
                 repo.videos = json.files;
                 repo.status = 'loaded';
-                await chrome.storage.session.set({ [repo.url]: json.files });
+                await browser.storage.session.set({ [repo.url]: json.files });
             } else {
                 repo.status = 'invalid';
                 console.warn(`Invalid json or unsupported version fetched from repository '${repo.url}'`);
@@ -174,7 +178,7 @@ async function removeRepository(url) {
 
 async function saveRepositories() {
     if (AppState.loaded) {
-        await chrome.storage.local.set({[AppState.CONFIG_REPOSITORIES]: AppState.repositories.map(repo => repo.url )});
+        await browser.storage.local.set({[AppState.CONFIG_REPOSITORIES]: AppState.repositories.map(repo => repo.url )});
 
         return true;
     }
@@ -184,7 +188,7 @@ async function saveRepositories() {
 
 async function ensureLoaded() {
     if (!AppState.loaded) {
-        const config = await chrome.storage.local.get();
+        const config = await browser.storage.local.get();
         const repositories = config[AppState.CONFIG_REPOSITORIES];
         if (Array.isArray(repositories)) {
             AppState.repositories = repositories.map(repo_url => {
@@ -196,7 +200,7 @@ async function ensureLoaded() {
             });
         }
 
-        const session = await chrome.storage.session.get();
+        const session = await browser.storage.session.get();
         for (let repo of AppState.repositories) {
             if (repo.status === 'unloaded') {
                 const videos = session[repo.url];

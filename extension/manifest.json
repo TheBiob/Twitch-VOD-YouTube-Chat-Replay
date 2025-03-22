@@ -4,6 +4,7 @@
 	"manifest_version": 3,
 	"description": "Creates a chat replay on Twitch VODs exported to YouTube, if available",
 	"background": {
+		"scripts": ["service.js"],
 		"service_worker": "service.js"
 	},
 	"permissions": [

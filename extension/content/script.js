@@ -1,3 +1,7 @@
+if (typeof browser == "undefined") {
+    globalThis.browser = chrome; // Chrome does not support the browser namespace yet.
+}
+
 const AppState = {
 	is_initialized: false,
 	initialized_failed: false,
@@ -13,12 +17,26 @@ const AppState = {
 	},
 }
 
-window.addEventListener('load', TryInitialize);
-window.navigation.addEventListener('navigate', async (_ev) => {
-	if (_ev.destination.url.indexOf('/watch') >= 0 && _ev.destination.url.indexOf('?') >= 0) {
-		await ApplyChatForVideo(_ev.destination.url.substring(_ev.destination.url.indexOf('?')))
+if (window.navigation != undefined) {
+	window.navigation.addEventListener('navigate', OnNavigate);
+} else {
+	// Navigate event is not supported, poll for changes using MutationObserver
+	let old_href = document.location.href;
+	const body = document.querySelector('body');
+	const observer = new MutationObserver(mutations => {
+		if (old_href != document.location.href) {
+			old_href = document.location.href;
+			OnNavigate({ destination: { url: old_href } });
+		}
+	});
+	observer.observe(body, { childList: true, subtree: true });
+}
+
+async function OnNavigate(ev) {
+	if (ev.destination.url.indexOf('/watch') >= 0 && ev.destination.url.indexOf('?') >= 0) {
+		await ApplyChatForVideo(ev.destination.url.substring(ev.destination.url.indexOf('?')))
 	}
-});
+}
 
 async function TryInitialize() {
 	await SetupAppState();
@@ -195,7 +213,7 @@ async function ApplyChatForVideo(search_params) {
 			if (AppState.active_chat_history.loaded && AppState.active_chat_history.for_video_id == video_id) {
 				console.trace("Video id already loaded");
 			} else {
-				const chat_data = await chrome.runtime.sendMessage({type: 'get-chat-data', video_id})
+				const chat_data = await browser.runtime.sendMessage({type: 'get-chat-data', video_id})
 				AppState.active_chat_history.current_message_index = -1;
 				AppState.active_chat_history.for_video_id = video_id;
 				AppState.active_chat_history.loaded = chat_data.messages != null;
@@ -217,3 +235,5 @@ async function ApplyChatForVideo(search_params) {
 		}
 	}
 }
+
+TryInitialize();

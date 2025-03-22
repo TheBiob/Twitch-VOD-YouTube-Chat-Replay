@@ -1,3 +1,7 @@
+if (typeof browser == "undefined") {
+    globalThis.browser = chrome; // Chrome does not support the browser namespace yet.
+}
+
 window.addEventListener('DOMContentLoaded', domContentLoaded);
 
 async function domContentLoaded() {
@@ -11,12 +15,12 @@ async function domContentLoaded() {
 }
 
 async function loadRepositories() {
-    await chrome.runtime.sendMessage({type:'load-repositories'});
+    await browser.runtime.sendMessage({type:'load-repositories'});
     await reloadRepositoryList();
 }
 
 async function reloadRepositoryList() {
-    const repositories = await chrome.runtime.sendMessage({type: 'get-repositories'});
+    const repositories = await browser.runtime.sendMessage({type: 'get-repositories'});
     const repo_container = document.querySelector('#repo_container');
     while (repo_container.lastChild) {
         repo_container.removeChild(repo_container.lastChild);
@@ -37,7 +41,7 @@ async function reloadRepositoryList() {
         collapse_btn.dataset.bsTarget += '.repo' + repo_id;
         element.querySelector('button.btn-remove-repository').addEventListener('click', async () => {
             if (confirm(`Delete '${repo.url}'?`)) {
-                const result = await chrome.runtime.sendMessage({type: 'remove-repository', url: repo.url});
+                const result = await browser.runtime.sendMessage({type: 'remove-repository', url: repo.url});
                 console.log(result);
                 if (result.success) {
                     await reloadRepositoryList();
@@ -74,7 +78,7 @@ async function addRepositoryClick(e) {
         return;
     }
 
-    const result = await chrome.runtime.sendMessage({ type: 'add-repository', url: repo_url });
+    const result = await browser.runtime.sendMessage({ type: 'add-repository', url: repo_url });
     if (result.success) {
         repo_input.value = '';
         repo_error.innerText = '';

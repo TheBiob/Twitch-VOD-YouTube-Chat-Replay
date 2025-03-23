@@ -1,17 +1,20 @@
+div.twitch-chat-container {
+    --tw-chat-background: #0e0e10;
+    --tw-chat-border-col: #5e5e5e;
+    --tw-interactable-hover: rgba(83, 83, 95, 0.48);
+    --tw-header-size: 4rem;
+
+    background: var(--tw-background);
+    color: white;
+    height: 70vh;
+    font-size: 1.5rem;
+    border: 1px solid var(--tw-chat-border-col);
+    display: flex;
+    flex-direction: column;
+}
+
 div.twitch-chat-container.hidden {
     display: none;
-}
-
-div.twitch-chat-container a {
-    color: inherit;
-}
-
-div.twitch-chat-container {
-    background: black;
-    color: white;
-    font-size: 2em;
-    height: 60vh;
-    overflow-y: scroll;
 }
 
 ul.twitch-chat-list {
@@ -21,11 +24,46 @@ ul.twitch-chat-list {
 ul.twitch-chat-list li {
     padding: 5px 0 5px 5px;
 }
-
-ul.twitch-chat-list li:nth-of-type(2n) {
-    background: #222222;
+.tw-chat-header {
+    background: #1f1f23;
+    text-align: center;
+    height: var(--tw-header-size);
+    line-height: var(--tw-header-size);
 }
 
-ul.twitch-chat-list li:hover {
-    background: #444444;
+.tw-chat-messages {
+    height: calc(100% - var(--tw-header-size));
+    display: flex;
+    overflow-y: scroll;
+}
+
+.tw-ul-wrapper {
+    flex-direction: column;
+    justify-content: flex-end;
+    width: 100%;
+    margin-top: auto;
+}
+
+.tw-chat-message {
+    display: flex;
+}
+
+a.tw-username {
+    color: inherit;
+}
+a.tw-username:not(:hover) {
+    text-decoration: none;
+}
+
+button.tw-timestamp {
+    font-size: 1.2rem;
+    background: none;
+    border: none;
+    color: inherit;
+    padding: 2px 5px;
+}
+
+button.tw-timestamp:hover {
+    background: var(--tw-interactable-hover);
+    cursor: pointer;
 }

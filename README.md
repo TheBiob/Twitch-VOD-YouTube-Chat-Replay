@@ -27,9 +27,9 @@ I'll add instructions on how to set this up once I have the scripts for it writt
 ### TODOs
  - Add scripts to automate downloading, formatting and pushing chat history files
  - Add Twitch as well as third party emotes to chat messages
- - Add a configuration page to the extension, support for other repositories
- - Change chat design to closer represent what it'd look like on twitch
- - Support readable colors settings
+ - More settings for the extension
+    - Readable colors
+    - Chat layout
  - VOD chapters
  - Popout chat
- - Transparent on-video chat, draggable akin to subtitles
+ - Transparent on-video chat

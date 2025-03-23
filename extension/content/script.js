@@ -8,6 +8,7 @@ const AppState = {
 	video_element: undefined,
 	chat_container: undefined,
 	chat_list: undefined,
+	chat_template: undefined,
 	active_chat_history: {
 		loaded: false,
 		for_video_id: undefined,
@@ -58,8 +59,15 @@ function onVideoSeeking() {
 	RenderChatHistory(false);
 }
 
-function onMessageClicked(ev) {
-	let msg = ev.currentTarget.message;
+function findMessage(elem) {
+	while (!elem?.message) {
+		elem = elem.parentElement;
+	}
+	return elem?.message;
+}
+
+function onSeekMessageClicked(ev) {
+	const msg = findMessage(ev.currentTarget);
 	if (msg != undefined && AppState.video_element != undefined) {
 		AppState.video_element.currentTime=  msg.content_offset_seconds;
 	}
@@ -68,6 +76,21 @@ function onMessageClicked(ev) {
 async function SetupAppState() {
 	if (AppState.initialized_failed)
 		return;
+
+	if (!AppState.chat_template) {
+		AppState.chat_template = document.createElement('template');
+		AppState.chat_template.innerHTML = `
+<div class="tw-chat-message">
+	<div class="col">
+		<button class="tw-timestamp" title="Jump to Video"><span class="text-content"></span></button>
+	</div>
+	<div class="col">
+		<span class="tw-user-container"><a class="tw-username"></a></span><span>: </span>
+		<span class="tw-message-body"></span>
+	</div>
+</div>
+`;
+	}
 
 	if (!AppState.is_initialized) {
 		AppState.video_element = document.querySelector('ytd-player#ytd-player video.html5-main-video');
@@ -86,14 +109,18 @@ function SetupChatContainer() {
 			return false;
 
 		const container = document.createElement('div');
-		const list = document.createElement('ul');
-
+		container.innerHTML = `
+<div class="tw-chat-header"><span>VOD Chat</span></div>
+<div class="tw-chat-messages">
+	<div class="tw-ul-wrapper">
+		<ul class="twitch-chat-list"></ul>
+	</div>
+</div>
+`;
 		container.classList.add('twitch-chat-container', 'hidden');
-		list.classList.add('twitch-chat-list');
-		container.appendChild(list);
 		chat_container.appendChild(container);
 		AppState.chat_container = container;
-		AppState.chat_list = list;
+		AppState.chat_list = container.querySelector('ul.twitch-chat-list');
 	}
 
 	return true;
@@ -111,16 +138,19 @@ function formatTime(seconds) {
 }
 
 function buildChatMessage(message) {
-	let time = document.createElement('span');
-	time.innerText = `[${formatTime(message.content_offset_seconds)}]`;
+	const chat_msg = AppState.chat_template.content.cloneNode(true);
+	
+	const time = chat_msg.querySelector('button.tw-timestamp');
+	time.querySelector('.text-content').innerText = formatTime(message.content_offset_seconds);
+	time.addEventListener('click', onSeekMessageClicked);
+	
+	const user_container = chat_msg.querySelector('.tw-user-container');
+	user_container.style.color = message.message.user_color;
 
-	let commenter = document.createElement('span');
-	let commenter_link = document.createElement('a');
-	commenter_link.target = "_blank";
-	commenter_link.href = "https://twitch.tv/" + message.commenter.name;
-	commenter_link.innerText = message.commenter.display_name;
-	commenter.style.color = message.message.user_color;
-	commenter.appendChild(commenter_link);
+	const user_link = chat_msg.querySelector('a.tw-username');
+	user_link.target = "_blank";
+	user_link.href = "https://twitch.tv/" + message.commenter.name;
+	user_link.innerText = message.commenter.display_name;
 
 	for (let badge of message.message.user_badges) {
 		const badge_content = AppState.active_chat_history.embedded_data?.twitch_badges[badge._id]?.versions[badge.version];
@@ -133,24 +163,19 @@ function buildChatMessage(message) {
 			badge_img.title = badge_content.title;
 			badge_img.ariaDescription = badge_content.description;
 			badge_span.appendChild(badge_img);
-			commenter.prepend(badge_span);
+			badge_span.classList.add('tw-badge');
+			user_container.prepend(badge_span);
 		} else {
 			console.warn(`Badge ${badge._id} not found`);
 		}
 	}
 
-	let message_body = document.createElement('span');
+	const message_body = chat_msg.querySelector('.tw-message-body');
 	message_body.innerText = message.message.body;
 
-	let element = document.createElement('li');
-	element.appendChild(time);
-	element.append(' ');
-	element.appendChild(commenter);
-	element.append(': ');
-	element.appendChild(message_body);
-
+	const element = document.createElement('li');
+	element.appendChild(chat_msg);
 	element.message = message;
-	element.addEventListener('click', onMessageClicked);
 	return element;
 }
 
@@ -236,4 +261,12 @@ async function ApplyChatForVideo(search_params) {
 	}
 }
 
+function injectStyles(url) {
+	const elem = document.createElement('link');
+	elem.rel = 'stylesheet';
+	elem.setAttribute('href', url);
+	document.body.appendChild(elem);
+}
+
+injectStyles(browser.runtime.getURL('content/style.css'));
 TryInitialize();

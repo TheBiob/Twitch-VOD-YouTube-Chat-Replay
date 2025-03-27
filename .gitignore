@@ -1,0 +1,6 @@
+# ignore built extension
+*.zip
+dist/
+
+# ignore modules managed by npm
+node_modules/

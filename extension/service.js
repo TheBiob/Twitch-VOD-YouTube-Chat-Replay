@@ -45,6 +45,9 @@ browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     } else if (message.type == 'load-repositories') {
         reloadRepositories().then(sendResponse);
         return true;
+    } else if (message.type == 'reload-repository') {
+        reloadRepository(message.url).then(sendResponse);
+        return true;
     }
 });
 
@@ -73,6 +76,18 @@ async function loadRepositoryVideos(repo) {
     } catch (e) {
         repo.status = 'error';
         console.error(e, repo);
+    }
+}
+
+async function reloadRepository(url) {
+    await ensureLoaded();
+
+    const repo = AppState.repositories.find(repo => repo.url === url);
+    if (repo) {
+        await loadRepositoryVideos(repo);
+        return { success: true };
+    } else {
+        return { success: false, error_message: 'Repository not found' };
     }
 }
 

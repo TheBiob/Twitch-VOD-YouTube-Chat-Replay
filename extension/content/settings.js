@@ -33,8 +33,12 @@ async function reloadRepositoryList() {
         repo_id++;
 
         const element = template.cloneNode(true);
+        let repo_status = repo.status;
+        if (repo_status === 'loaded') {
+            repo_status += `, ${Object.keys(repo.videos).length} videos`;
+        }
         element.querySelector('span.repo_name').textContent = repo.url;
-        element.querySelector('span.repo_status').textContent = repo.status;
+        element.querySelector('span.repo_status').textContent = repo_status;
 
         const collapse_btn = element.querySelector('button.video-list-collapse');
         element.querySelector(collapse_btn.dataset.bsTarget).classList.add('repo' + repo_id)
@@ -46,6 +50,13 @@ async function reloadRepositoryList() {
                 if (result.success) {
                     await reloadRepositoryList();
                 }
+            }
+        });
+        element.querySelector('button.btn-reload-repository').addEventListener('click', async () => {
+            const result = await browser.runtime.sendMessage({type: 'reload-repository', url: repo.url});
+            console.log(result);
+            if (result.success) {
+                await reloadRepositoryList();
             }
         });
 

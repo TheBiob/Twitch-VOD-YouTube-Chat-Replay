@@ -7,3 +7,7 @@ body {
 div.row {
     margin-bottom: 2em;
 }
+
+div.repo-controls button {
+    margin: 0.1rem;
+}

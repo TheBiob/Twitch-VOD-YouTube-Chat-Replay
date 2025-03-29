@@ -187,6 +187,7 @@ async function removeRepository(url) {
     }
 
     AppState.repositories.splice(index, 1);
+    await saveRepositories();
 
     return { success: true };
 }

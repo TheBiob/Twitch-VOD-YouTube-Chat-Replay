@@ -1,3 +1,6 @@
+const { EmoteFetcher } = require('@mkody/twitch-emoticons');
+const { EmoteRenderer } = require('./EmoteRenderer.js');
+
 if (typeof browser == "undefined") {
     globalThis.browser = chrome; // Chrome does not support the browser namespace yet.
 }
@@ -16,6 +19,9 @@ const AppState = {
 		current_message_index: -1,
 		embedded_data: null,
 	},
+
+	emote_fetcher: null,
+	emote_renderer: null,
 }
 
 if (window.navigation != undefined) {
@@ -97,6 +103,17 @@ async function SetupAppState() {
 		if (AppState.video_element != undefined && SetupChatContainer()) {
 			AppState.video_element.addEventListener('seeking', onVideoSeeking);
 			AppState.video_element.addEventListener('timeupdate', onVideoTimeUpdate);
+
+			AppState.emote_fetcher = new EmoteFetcher('kd1unb4b3q4t58fwlpcbzcbnm76a8fp', '');
+			AppState.emote_renderer = new EmoteRenderer(AppState.emote_fetcher);
+			await Promise.all([
+				// BTTV global
+				AppState.emote_fetcher.fetchBTTVEmotes(),
+				// 7TV global
+				AppState.emote_fetcher.fetchSevenTVEmotes(),
+				// FFZ global
+				AppState.emote_fetcher.fetchFFZEmotes(),
+			]);
 			AppState.is_initialized = true;
 		}
 	}
@@ -152,14 +169,12 @@ function buildChatMessage(message) {
 	user_link.href = "https://twitch.tv/" + message.commenter.name;
 	user_link.innerText = message.commenter.display_name;
 
-	for (let badge of message.message.user_badges) {
+	for (let badge of message.message.user_badges || []) {
 		const badge_content = AppState.active_chat_history.embedded_data?.twitch_badges[badge._id]?.versions[badge.version];
 		if (badge_content != null) {
 			const badge_span = document.createElement('span');
 			const badge_img = document.createElement('img');
 			badge_img.src = "data:image/png;base64,"+badge_content.bytes;
-			badge_img.width = 16;
-			badge_img.height = 16;
 			badge_img.title = badge_content.title;
 			badge_img.ariaDescription = badge_content.description;
 			badge_span.appendChild(badge_img);
@@ -171,7 +186,10 @@ function buildChatMessage(message) {
 	}
 
 	const message_body = chat_msg.querySelector('.tw-message-body');
-	message_body.innerText = message.message.body;
+	const message_parts = AppState.emote_renderer.parseMessage(message.message);
+	for (let child of message_parts) {
+		message_body.appendChild(child);
+	}
 
 	const element = document.createElement('li');
 	element.appendChild(chat_msg);
@@ -241,11 +259,17 @@ async function ApplyChatForVideo(search_params) {
 				const chat_data = await browser.runtime.sendMessage({type: 'get-chat-data', video_id})
 				AppState.active_chat_history.current_message_index = -1;
 				AppState.active_chat_history.for_video_id = video_id;
-				AppState.active_chat_history.loaded = chat_data.messages != null;
 				AppState.active_chat_history.messages = chat_data.messages ?? [];
 				AppState.active_chat_history.embedded_data = chat_data.embedded_data;
-				if (AppState.active_chat_history.loaded) {
+				AppState.active_chat_history.channel_id = chat_data.channel_id;
+				
+				if (chat_data.messages != null) {
+					await AppState.emote_renderer.setChannelIdAsync(chat_data.channel_id);
+					
+					AppState.active_chat_history.loaded = true;
 					RenderChatHistory(true);
+				} else {
+					AppState.active_chat_history.loaded = false;
 				}
 			}
 		} else {

@@ -18,18 +18,20 @@ Since it uses a git repository to fetch the chat data it has to grab the entire 
 I'll add instructions on how to set this up once I have the scripts for it written and tested.
 
 ### Current features
- - Display chat messages when they appeared on stream
- - Seeking through the video updates the displayed messages
- - Messages contain a timestamp and can be clicked on to jump to the relevant point in the video
+ - Display chat messages as they appeared on stream
+ - Messages contain a timestamp that can be clicked on to jump to the relevant point in the video
  - Standard Twitch badges will be displayed next to the user
  - User names link to their relevant twitch pages
+ - Twitch as well as third party (FFZ, BTTV and 7TV) emotes, third-party emotes handled using [@mkody/twitch-emoticons](https://github.com/mkody/twitch-emoticons)
+ - Supports dark and light YouTube themes
 
 ### TODOs
  - Add scripts to automate downloading, formatting and pushing chat history files
- - Add Twitch as well as third party emotes to chat messages
  - More settings for the extension
     - Readable colors
     - Chat layout
+    - Enable/disable third-party emotes
+    - Enable/disabled badges
  - VOD chapters
  - Popout chat
  - Transparent on-video chat

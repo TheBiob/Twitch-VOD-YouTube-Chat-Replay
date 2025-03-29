@@ -47,6 +47,16 @@ ul.twitch-chat-list li {
     display: flex;
     overflow-y: scroll;
 }
+.tw-chat-message div.twitch-emote {
+    display: inline;
+}
+.tw-chat-message img.twitch-emote {
+    vertical-align: middle;
+}
+.tw-badge img {
+    height: 1.8rem;
+    vertical-align: middle;
+}
 
 .tw-ul-wrapper {
     flex-direction: column;

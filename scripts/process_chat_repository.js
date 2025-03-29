@@ -62,7 +62,17 @@ async function processJsonChatFile(file) {
                 }
                 next_message_disperse_offset = i+same_second_message_counter;
             }
-            messages.push({
+
+            const twitch_emotes = {};
+            for (let fragment of message.message.fragments) {
+                if (fragment.emoticon ) {
+                    if (twitch_emotes[fragment.text] && twitch_emotes[fragment.text] !== fragment.emoticon.emoticon_id) {
+                        console.warn(`Duplicate emote ${fragment.text} with different id ${twitch_emotes[fragment.text]} -> ${fragment.emoticon.emoticon_id} in ${file}`);
+                    }
+                    twitch_emotes[fragment.text] = fragment.emoticon.emoticon_id;
+                }
+            }
+            const new_message = {
                 //"_id": message._id,
                 "content_offset_seconds": message.content_offset_seconds,
                 "commenter": {
@@ -74,8 +84,19 @@ async function processJsonChatFile(file) {
                     "body": message.message.body,
                     "user_color": message.message.user_color,
                     "user_badges": message.message.user_badges,
+                    "twitch_emotes": twitch_emotes,
                 }
-            });
+            };
+
+            // Delete empty elements when they aren't needed to reduce json file size
+            if (Object.keys(new_message.message.twitch_emotes).length == 0) {
+                delete new_message.message.twitch_emotes;
+            }
+            if (new_message.message.user_badges.length == 0) {
+                delete new_message.message.user_badges;
+            }
+
+            messages.push(new_message);
         }
         
         let twitch_badges = {};

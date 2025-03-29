@@ -116,6 +116,7 @@ async function fetchVideoData(video_id) {
 
                     // If the chat data was successfully fetched, return the data
                     return {
+                        channel_id: json.twitch_info.streamer.id,
                         messages: json.messages,
                         embedded_data: json.embedded_data,
                     };

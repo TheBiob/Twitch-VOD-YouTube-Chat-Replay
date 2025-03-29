@@ -1,11 +1,22 @@
 div.twitch-chat-container {
-    --tw-chat-background: #0e0e10;
+    --tw-chat-background: #fefefe;
+    --tw-header-background: #f0f0f0;
+    --tw-text-color: black;
+    --tw-chat-border-col: #ababab;
+    --tw-interactable-hover: rgb(199 199 199 / 60%);
+    --tw-header-size: 4rem;
+}
+html[dark] div.twitch-chat-container {
+    --tw-chat-background: #1a1a1a;
+    --tw-header-background: #242424;
+    --tw-text-color: white;
     --tw-chat-border-col: #5e5e5e;
     --tw-interactable-hover: rgba(83, 83, 95, 0.48);
-    --tw-header-size: 4rem;
+}
 
-    background: var(--tw-background);
-    color: white;
+div.twitch-chat-container {
+    background: var(--tw-chat-background);
+    color: var(--tw-text-color);
     height: 70vh;
     font-size: 1.5rem;
     border: 1px solid var(--tw-chat-border-col);
@@ -25,7 +36,7 @@ ul.twitch-chat-list li {
     padding: 5px 0 5px 5px;
 }
 .tw-chat-header {
-    background: #1f1f23;
+    background: var(--tw-header-background);
     text-align: center;
     height: var(--tw-header-size);
     line-height: var(--tw-header-size);

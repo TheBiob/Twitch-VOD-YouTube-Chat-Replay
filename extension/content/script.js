@@ -22,6 +22,7 @@ const AppState = {
 
 	emote_fetcher: null,
 	emote_renderer: null,
+	config: null,
 }
 
 if (window.navigation != undefined) {
@@ -83,6 +84,10 @@ async function SetupAppState() {
 	if (AppState.initialized_failed)
 		return;
 
+	if (!AppState.config) {
+		AppState.config = await browser.runtime.sendMessage({type:'get-config'});
+	}
+
 	if (!AppState.chat_template) {
 		AppState.chat_template = document.createElement('template');
 		AppState.chat_template.innerHTML = `
@@ -105,14 +110,14 @@ async function SetupAppState() {
 			AppState.video_element.addEventListener('timeupdate', onVideoTimeUpdate);
 
 			AppState.emote_fetcher = new EmoteFetcher('kd1unb4b3q4t58fwlpcbzcbnm76a8fp', '');
-			AppState.emote_renderer = new EmoteRenderer(AppState.emote_fetcher);
+			AppState.emote_renderer = new EmoteRenderer(AppState.emote_fetcher, AppState.config);
 			await Promise.all([
-				// BTTV global
-				AppState.emote_fetcher.fetchBTTVEmotes(),
-				// 7TV global
-				AppState.emote_fetcher.fetchSevenTVEmotes(),
 				// FFZ global
-				AppState.emote_fetcher.fetchFFZEmotes(),
+				AppState.config.emotes.global.ffz ? AppState.emote_fetcher.fetchFFZEmotes() : Promise.resolve(),
+				// BTTV global
+				AppState.config.emotes.global.bttv ? AppState.emote_fetcher.fetchBTTVEmotes() : Promise.resolve(),
+				// 7TV global
+				AppState.config.emotes.global.seventv ? AppState.emote_fetcher.fetchSevenTVEmotes() : Promise.resolve(),
 			]);
 			AppState.is_initialized = true;
 		}
@@ -240,6 +245,16 @@ function RenderChatHistory(rerender) {
 		}
 
 		AppState.active_chat_history.current_message_index = message_index-1;
+
+		if (AppState.config.enable_last_mesasge_info
+			&& message_index >= AppState.active_chat_history.messages.length
+		) {
+			const span = document.createElement('span');
+			span.classList.add('tw-system-notification', 'tw-info');
+			span.innerText = 'No further messages';
+			span.message = AppState.active_chat_history.messages.at(-1);
+			ul.appendChild(span);
+		}
 
 		if (ul.lastChild) {
 			ul.lastChild.scrollIntoView(false);

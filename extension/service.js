@@ -9,6 +9,7 @@ const AppState = {
 	MIN_SUPPORTED_VERSION: 0.1,
 
     CONFIG_REPOSITORIES: 'repositories',
+    CONFIG_GENERAL: 'userSettings',
 
     loaded: false,
 
@@ -17,6 +18,8 @@ const AppState = {
         status: 'unloaded',
         videos: null,
     }],
+
+    config: null,
 }
 
 browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -48,8 +51,84 @@ browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     } else if (message.type == 'reload-repository') {
         reloadRepository(message.url).then(sendResponse);
         return true;
+    } else if (message.type == 'get-config') {
+        getConfig().then(sendResponse);
+        return true;
+    } else if (message.type == 'set-config') {
+        updateConfig(message.config).then(sendResponse);
+        return true;
     }
 });
+
+async function getConfig() {
+    if (AppState.config === null) {
+        AppState.config = {
+            enable_last_mesasge_info: false,
+            emotes: {
+                global: {
+                    twitch: true,
+                    ffz: true,
+                    bttv: true,
+                    seventv: true
+                },
+                channel: {
+                    ffz: true,
+                    bttv: true,
+                    seventv: true,
+                }
+            }
+        };
+        
+        const config = await browser.storage.local.get(AppState.CONFIG_GENERAL);
+        setConfigValues(config[AppState.CONFIG_GENERAL]);
+    }
+
+    return AppState.config;
+}
+
+async function updateConfig(config) {
+    try {
+        if (!AppState.config) {
+            await getConfig();
+        }
+
+        setConfigValues(config);
+        await browser.storage.local.set({[AppState.CONFIG_GENERAL]: AppState.config})
+
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e };
+    }
+}
+
+/**
+ * Sets all properties of AppState.config to the passed in config object where the properties exist
+ * @param {any} config The new config settings. Can be either the entire config object or only the properties that should change. Only properties that exist in and have the same type as AppState.config will be updated
+ */
+function setConfigValues(config) {
+    if (typeof(config) !== 'object' || Object.keys(config).length === 0) {
+        return;
+    }
+
+    let remaining = [{target: AppState.config, source: config }];
+    let objects = null;
+
+    while (objects = remaining.shift()) {
+        for (let property in objects.target) {
+            let type = typeof(objects.target[property]);
+
+            if (type !== typeof(objects.source[property])) {
+                continue;
+            }
+
+            if (type === 'object') {
+                remaining.push({target: objects.target[property], source: objects.source[property] })
+            } else  {
+                objects.target[property] = objects.source[property];
+            }
+        }
+    }
+}
 
 async function loadRepositoryVideos(repo) {
     try {

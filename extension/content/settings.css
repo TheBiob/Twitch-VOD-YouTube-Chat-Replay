@@ -4,10 +4,17 @@ body {
     color: white;
 }
 
-div.row {
+div.row.spacing {
     margin-bottom: 2em;
 }
 
 div.repo-controls button {
     margin: 0.1rem;
+}
+
+.nav-link {
+    color: inherit;
+}
+.nav-link:hover {
+    color: #eee;
 }

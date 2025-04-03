@@ -2,57 +2,88 @@
     <head>
         <title>Settings</title>
         <link href="../../node_modules/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
-        <script src="../../node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
         <link href="settings.css" rel="stylesheet">
-        <script src="settings.js"></script>
+        <!-- settings.js is automatically injected -->
     </head>
     <body>
-        <div class="container">
-            <div class="row">
-                <div class="col">
-                    <h1>Manage Repositories</h1>
-                    <br/>
-                    <button class="btn btn-primary reload">Reload</button>
-                    <button class="btn btn-primary load-repositories">Load unloaded repositories</button>
-                </div>
+        <nav>
+            <div class="nav nav-tabs" id="nav-tab" role="tablist">
+                <button class="nav-link active" id="nav-repositories-tab" data-bs-toggle="tab" data-bs-target="#nav-repositories" type="button" role="tab" aria-controls="nav-repositories" aria-selected="true">Repositories</button>
+                <button class="nav-link" id="nav-chat-appearance-tab" data-bs-toggle="tab" data-bs-target="#nav-chat-appearance" type="button" role="tab" aria-controls="nav-chat-appearance" aria-selected="false">Chat Appearance</button>
             </div>
-            <div class="row">
-                <div class="col">
-                    <ul class="list-group" id="repo_container">
-                    </ul>
-                </div>
-                <template id="repo_template">
-                    <li class="list-group-item container">
+        </nav>
+        <div class="tab-content">
+            <!-- Repositories -->
+            <div class="tab-pane show active" id="nav-repositories">
+                <div class="container">
+                    <div class="row mb-4 mt-4">
+                        <div class="col">
+                            <h1>Manage Repositories</h1>
+                        </div>
+                    </div>
+                    <div class="row mb-4">
+                        <div class="col">
+                            <button class="btn btn-primary reload">Reload</button>
+                            <button class="btn btn-primary load-repositories">Load unloaded repositories</button>
+                        </div>
+                    </div>
+                    <div class="row mb-4">
+                        <div class="col">
+                            <ul class="list-group" id="repo_container">
+                            </ul>
+                        </div>
+                        <template id="repo_template">
+                            <li class="list-group-item container">
+                                <div class="row">
+                                    <div class="col">
+                                        <span class="repo_name"></span> (<span class="repo_status"></span>)
+                                    </div>
+                                    <div class="col-2 repo-controls">
+                                        <button class="btn btn-primary video-list-collapse" data-bs-toggle="collapse" data-bs-target="div.collapse.video-list">Show videos</button>
+                                        <button class="btn btn-primary btn-reload-repository">Reload repository</button>
+                                        <button class="btn btn-danger btn-remove-repository">Remove repository</button>
+                                    </div>
+                                </div>
+                                <div class="row collapse video-list">
+                                    <div class="col">
+                                        <ul class="video-list list"></ul>
+                                    </div>
+                                </div>
+                            </li>
+                        </template>
+                    </div>
+                    <form class="add-repository" action="#">
                         <div class="row">
                             <div class="col">
-                                <span class="repo_name"></span> (<span class="repo_status"></span>)
+                                <input class="form-control repository-input" type="text" />
+                                <span class="repository-error"></span>
                             </div>
-                            <div class="col-2 repo-controls">
-                                <button class="btn btn-primary video-list-collapse" data-bs-toggle="collapse" data-bs-target="div.collapse.video-list">Show videos</button>
-                                <button class="btn btn-primary btn-reload-repository">Reload repository</button>
-                                <button class="btn btn-danger btn-remove-repository">Remove repository</button>
-                            </div>
-                        </div>
-                        <div class="row collapse video-list">
                             <div class="col">
-                                <ul class="video-list list"></ul>
+                                <button type="submit" class="btn btn-primary">Add new repository</button>
                             </div>
                         </div>
-                    </li>
-                </template>
+                    </form>
+                </div>
             </div>
-            <form class="add-repository" action="#">
-                <div class="row">
-                    <hr/>
-                    <div class="col">
-                        <input class="form-control repository-input" type="text" />
-                        <span class="repository-error"></span>
+            <!-- /Repositories -->
+
+            <!-- Chat Appearance -->
+            <div class="tab-pane" id="nav-chat-appearance">
+                <div class="container">
+                    <div class="row mb-4 mt-4">
+                        <div class="col">
+                            <h1>Chat Appearance</h1>
+                        </div>
                     </div>
-                    <div class="col">
-                        <button type="submit" class="btn btn-primary">Add new repository</button>
+                    <div class="list-group mb-4" id="configuration_container">
+                    </div>
+                    <div class="row">
+                        <button class="btn btn-primary" id="btn_save_settings">Save</button>
                     </div>
                 </div>
-            </form>
+            </div>
+            <!-- /Chat Appearance -->
         </div>
+        <script src="../../node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     </body>
 </html>

@@ -1,3 +1,11 @@
+const { ConfigBuilder } = require('./ConfigBuilder.js');
+
+const App = {
+    initialized: false,
+    save_config_button: null,
+    config_builder: null,
+};
+
 if (typeof browser == "undefined") {
     globalThis.browser = chrome; // Chrome does not support the browser namespace yet.
 }
@@ -6,12 +14,58 @@ window.addEventListener('DOMContentLoaded', domContentLoaded);
 
 async function domContentLoaded() {
     const task = reloadRepositoryList();
-    
+
     document.querySelector('button.reload').addEventListener('click', reloadRepositoryList);
     document.querySelector('button.load-repositories').addEventListener('click', loadRepositories);
     document.querySelector('form.add-repository').addEventListener('submit', addRepositoryClick);
 
+    const config = await browser.runtime.sendMessage({type:'get-config'});
+
+    const configBuilder = new ConfigBuilder(config, onConfigurationChanged);
+    configBuilder.beginSection("Global emotes");
+    configBuilder.addSetting("Enable Twitch", true, 'emotes.global.twitch');
+    configBuilder.addSetting("Enable FFZ", true, 'emotes.global.ffz');
+    configBuilder.addSetting("Enable BTTV", true, 'emotes.global.bttv');
+    configBuilder.addSetting("Enable 7TV", true, 'emotes.global.seventv');
+
+    configBuilder.beginSection("Third party channel emotes");
+    configBuilder.addSetting("Enable FFZ", true, 'emotes.channel.ffz');
+    configBuilder.addSetting("Enable BTTV", true, 'emotes.channel.bttv');
+    configBuilder.addSetting("Enable 7TV", true, 'emotes.channel.seventv');
+
+    configBuilder.beginSection("Other");
+    configBuilder.addSetting("Show a message when no more chat messages are left on the VOD", false, 'enable_last_mesasge_info');
+
+    const container = document.querySelector('#configuration_container');
+    configBuilder.build(container);
+
+    const save_config_button = document.querySelector('#btn_save_settings');
+    save_config_button.addEventListener('click', saveSettings);
+    save_config_button.disabled = true;
+
+    App.config_builder = configBuilder;
+    App.save_config_button = save_config_button;
+    
     await task;
+
+    App.initialized = true;
+}
+
+function onConfigurationChanged(configBuilder, _setting) {
+    if (App.initialized) {
+        App.save_config_button.disabled = !configBuilder.hasChanges();
+    }
+}
+
+async function saveSettings() {
+    if (App.initialized) {
+        const response = await browser.runtime.sendMessage({type:'set-config', config: App.config_builder.config});
+        console.log(response);
+        if (response?.success) {
+            App.config_builder.updateDefaultValues();
+            App.save_config_button.disabled = true;
+        }
+    }
 }
 
 async function loadRepositories() {

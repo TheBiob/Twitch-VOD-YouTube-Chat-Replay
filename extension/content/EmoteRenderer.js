@@ -1,7 +1,17 @@
 class EmoteRenderer {
-    constructor(fetcher) {
+    constructor(fetcher, config) {
+        this.config = config;
         this.fetcher = fetcher;
         this.channel_id = null;
+
+        // Skip parsing if none of the emotes are enabled anyway
+        this.no_emotes = !config.emotes.global.twitch
+            && !config.emotes.global.ffz
+            && !config.emotes.global.bttv
+            && !config.emotes.global.seventv
+            && !config.emotes.channel.ffz
+            && !config.emotes.channel.bttv
+            && !config.emotes.channel.seventv;
     }
 
     /**
@@ -10,14 +20,14 @@ class EmoteRenderer {
      */
     async setChannelIdAsync(channel_id) {
         this.channel_id = channel_id;
-        if (this.fetcher.channels.get(channel_id) == null) {
+        if (!this.no_emotes && this.fetcher.channels.get(channel_id) == null) {
             await Promise.allSettled([
-                // BTTV channel
-                this.fetcher.fetchBTTVEmotes(channel_id),
-                // 7TV channel
-                this.fetcher.fetchSevenTVEmotes(channel_id),
                 // FFZ channel
-                this.fetcher.fetchFFZEmotes(channel_id),
+                this.config.emotes.channel.ffz ? this.fetcher.fetchFFZEmotes(channel_id) : Promise.resolve(),
+                // BTTV channel
+                this.config.emotes.channel.bttv ? this.fetcher.fetchBTTVEmotes(channel_id) : Promise.resolve(),
+                // 7TV channel
+                this.config.emotes.channel.seventv ? this.fetcher.fetchSevenTVEmotes(channel_id) : Promise.resolve(),
             ]);
         }
     }
@@ -49,7 +59,11 @@ class EmoteRenderer {
      * @returns A list of HTMLElements that make up the message, split into text fragments and emotes
      */
     parseMessage(message, size=0) {
-        const inlineEmotes = message.twitch_emotes || {};
+        if (this.no_emotes) {
+            return [this._createTextFragment(message.body)];
+        }
+
+        const inlineEmotes = this.config.emotes.global.twitch ? message.twitch_emotes || {} : {};
         const channelEmotes = this.fetcher.channels.get(this.channel_id)?.emotes;
         const globalEmotes = this.fetcher.channels.get(null)?.emotes;
 

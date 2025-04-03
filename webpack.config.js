@@ -17,10 +17,12 @@ const SOURCES = [
 
 module.exports = (env, argv) => {
     const plugins = [
-        // Add all html files using HtmlWebpackPlugin
+        // Add all html files using HtmlWebpackPlugin, always inject <filename>.js into it
         ...SOURCES.filter(src => src.endsWith('.html')).map(src => new HtmlWebpackPlugin({
-            inject: false,
+            inject: 'head',
             filename: src,
+            scriptLoading: 'blocking',
+            chunks: [ src.replace('.html', '.js') ],
             template: path.resolve(SOURCE_DIR, src),
         }))
     ];
@@ -39,10 +41,8 @@ module.exports = (env, argv) => {
             path: DIST_DIR,
             clean: true,
         },
-        optimization: {
-            removeEmptyChunks: false,
-        },
-        entry: Object.fromEntries(SOURCES.filter(src => src.endsWith('.html') == false).map(src => [src, path.resolve(SOURCE_DIR, src)])),
+        // All .html files have a js entry with the same filename, html files themselves are generated using HtmlWebpackPlugin
+        entry: Object.fromEntries(SOURCES.map(src => [src.replace('.html', '.js'), path.resolve(SOURCE_DIR, src.replace('.html', '.js'))])),
         module: {
             rules: [
                 {
@@ -65,13 +65,10 @@ module.exports = (env, argv) => {
                     }
                 },
                 {
-                    // default filename [hash] generated for js files breaks in production environments. TODO: why?
-                    test: /.js$/,
-                    generator: {
-                        filename: '[base]'
-                    }
-                }
-            ]
+                    test: /\.css/,
+                    type: 'asset/resource',
+                },
+            ],
         },
         plugins,
     }

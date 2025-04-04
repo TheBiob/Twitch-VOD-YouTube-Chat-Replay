@@ -13,16 +13,16 @@
 	],
 	"web_accessible_resources": [{
 		"resources": ["content/style.css"],
-		"matches": ["https://*.youtube.com/*"]
+		"matches": ["https://www.youtube.com/*"]
 	}],
 	"content_scripts": [
 		{
-		  "matches": ["https://*.youtube.com/*"],
+		  "matches": ["https://www.youtube.com/*"],
 		  "js": ["content/script.js"]
 		}
 	  ],
 	"host_permissions": [
-		"https://*.youtube.com/*"
+		"https://www.youtube.com/*"
 	],
 	"action": {
 		"default_popup": "popup.html"

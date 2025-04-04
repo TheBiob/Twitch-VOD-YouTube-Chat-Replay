@@ -68,6 +68,12 @@ module.exports = (env, argv) => {
                     test: /\.css/,
                     type: 'asset/resource',
                 },
+                {
+                    test: /\.js/,
+                    generator: {
+                        filename: '[base]',
+                    }
+                },
             ],
         },
         plugins,

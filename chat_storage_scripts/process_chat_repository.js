@@ -1,7 +1,8 @@
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 
-const CHAT_REPOSITORY = '../../chat_repository/';
+const CHAT_REPOSITORY = './chat_repository/';
 const RAW_PATH = CHAT_REPOSITORY+'raw/';
 const PROCESSED_PATH = CHAT_REPOSITORY+'processed/';
 const INDEX_JSON = CHAT_REPOSITORY+'index.json';
@@ -18,6 +19,10 @@ async function main() {
     }
 
     let data = await Promise.allSettled(files.map(processJsonChatFile));
+    if (!existsSync(PROCESSED_PATH)) {
+        await mkdir(PROCESSED_PATH);
+    }
+
     for (let task of data) {
         if (task.status == 'fulfilled') {
             await writeFile(PROCESSED_PATH+task.value.file, JSON.stringify(task.value.data, null, 0), { encoding: 'utf8' });
@@ -100,7 +105,7 @@ async function processJsonChatFile(file) {
         }
         
         let twitch_badges = {};
-        for (let badge of obj.embeddedData.twitchBadges) {
+        for (let badge of obj.embeddedData?.twitchBadges || []) {
             twitch_badges[badge.name] = badge;
         }
         

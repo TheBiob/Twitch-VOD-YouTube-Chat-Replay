@@ -47,6 +47,7 @@ ul.twitch-chat-list li {
 .tw-chat-messages {
     height: calc(100% - var(--tw-header-size));
     display: flex;
+    overflow-x: hidden;
     overflow-y: scroll;
 }
 .tw-chat-message div.twitch-emote {

@@ -4,6 +4,8 @@ const App = {
     initialized: false,
     save_config_button: null,
     config_builder: null,
+
+    loaded_repositories: [],
 };
 
 if (typeof browser == "undefined") {
@@ -15,7 +17,7 @@ window.addEventListener('DOMContentLoaded', domContentLoaded);
 async function domContentLoaded() {
     const task = reloadRepositoryList();
 
-    document.querySelector('button.reload').addEventListener('click', reloadRepositoryList);
+    document.querySelector('button.reload').addEventListener('click', reloadAllRepositories);
     document.querySelector('button.load-repositories').addEventListener('click', loadRepositories);
     document.querySelector('form.add-repository').addEventListener('submit', addRepositoryClick);
 
@@ -68,6 +70,18 @@ async function saveSettings() {
     }
 }
 
+async function reloadAllRepositories() {
+    for (let repo of App.loaded_repositories) {
+        const result = await browser.runtime.sendMessage({type: 'reload-repository', url: repo.url});
+        console.log(result);
+        if (!result.success) {
+            alert(result.error_message);
+        }
+    }
+
+    await reloadRepositoryList();
+}
+
 async function loadRepositories() {
     await browser.runtime.sendMessage({type:'load-repositories'});
     await reloadRepositoryList();
@@ -76,16 +90,17 @@ async function loadRepositories() {
 async function reloadRepositoryList() {
     const repositories = await browser.runtime.sendMessage({type: 'get-repositories'});
     const repo_container = document.querySelector('#repo_container');
+
     while (repo_container.lastChild) {
         repo_container.removeChild(repo_container.lastChild);
     }
-
+    
     const template = document.querySelector('#repo_template').content;
-
+    
     let repo_id = 0;
     for (let repo of repositories) {
         repo_id++;
-
+        
         const element = template.cloneNode(true);
         let repo_status = repo.status;
         if (repo_status === 'loaded') {
@@ -93,7 +108,7 @@ async function reloadRepositoryList() {
         }
         element.querySelector('span.repo_name').textContent = repo.url;
         element.querySelector('span.repo_status').textContent = repo_status;
-
+        
         const collapse_btn = element.querySelector('button.video-list-collapse');
         element.querySelector(collapse_btn.dataset.bsTarget).classList.add('repo' + repo_id)
         collapse_btn.dataset.bsTarget += '.repo' + repo_id;
@@ -128,11 +143,13 @@ async function reloadRepositoryList() {
         }
         repo_container.appendChild(element);
     }
+
+    App.loaded_repositories = repositories;
 }
 
 async function addRepositoryClick(e) {
     e.preventDefault();
-
+    
     const repo_input = document.querySelector('input.repository-input');
     const repo_error = document.querySelector('span.repository-error');
     const repo_url = repo_input.value.trim();

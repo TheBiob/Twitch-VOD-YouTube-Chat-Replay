@@ -18,6 +18,8 @@ async function main() {
         files = settings.files.split(',').map(x => x+'.json');
     }
 
+    files = files.filter(x => x.startsWith('@') == false);
+
     let data = await Promise.allSettled(files.map(processJsonChatFile));
     if (!existsSync(PROCESSED_PATH)) {
         await mkdir(PROCESSED_PATH);
@@ -196,7 +198,7 @@ function readCommandLine() {
         console.info(`Usage: process_raw.js <args>
 Options:
 ${getHelp(options)}`);
-        process.exit(data.help ? 0 : 1);
+        process.exit(data?.help ? 0 : 1);
     }
     
     return data;

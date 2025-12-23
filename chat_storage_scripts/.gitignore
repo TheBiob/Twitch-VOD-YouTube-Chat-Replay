@@ -2,3 +2,5 @@
 *.exe
 
 chat_repository/
+video_cache.json
+auth_config.json
